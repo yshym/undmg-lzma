@@ -14,7 +14,6 @@ This requires zlib, bzip2, and glibc to build.
 $ git clone https://github.com/matthewbauer/undmg.git
 $ cd undmg
 $ make
-$ ./undmg
 ```
 
 ## License
