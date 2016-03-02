@@ -18,4 +18,4 @@ $ ./undmg
 ```
 
 ## License
-GPL3, most of this code is from the [xpwn](https://github.com/planetbeing/xpwn)
+GPL3, most of this code is from the [xpwn](https://github.com/planetbeing/xpwn) project.
