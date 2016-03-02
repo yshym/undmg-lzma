@@ -3,15 +3,13 @@ SRC=$(wildcard *.c)
 OBJ=$(SRC:.c=.o)
 LIB=-lz -lc -lbz2
 CC=cc -c
-LD=clang
-LD_FLAGS=$(LIB)
-CC_FLAGS=
+LD=cc
 
 $(OUT): $(OBJ)
-	$(LD) $(LD_FLAGS) $^ -o $@
+	$(LD) $(LIB) $^ -o $@
 
 %.o: %.c
-	$(CC) $(CC_FLAGS) $^ -o $@
+	$(CC) $^ -o $@
 
 clean:
 	rm -f $(OBJ) $(OUT)
