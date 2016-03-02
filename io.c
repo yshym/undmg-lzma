@@ -163,8 +163,6 @@ BLKXTable* insertBLKX(AbstractFile* out, AbstractFile* in, uint32_t firstSectorN
 					blkx->runs[curRun].compOffset = out->tell(out) - blkx->dataStart;
 					blkx->runs[curRun].compLength = 0;
 
-					printf("run %d: skipping sectors=%" PRId64 ", left=%d\n", curRun, (int64_t) sectorsToSkip, numSectors);
-
 					curSector += blkx->runs[curRun].sectorCount;
 					numSectors -= blkx->runs[curRun].sectorCount;
 
@@ -180,8 +178,6 @@ BLKXTable* insertBLKX(AbstractFile* out, AbstractFile* in, uint32_t firstSectorN
 					blkx->runs[curRun].compOffset = out->tell(out) - blkx->dataStart;
 					blkx->runs[curRun].compLength = 0;
 
-					printf("run %d: skipping sectors=%" PRId64 ", left=%d\n", curRun, (int64_t) sectorsToSkip, numSectors);
-
 					curSector += blkx->runs[curRun].sectorCount;
 					numSectors -= blkx->runs[curRun].sectorCount;
 
@@ -193,8 +189,6 @@ BLKXTable* insertBLKX(AbstractFile* out, AbstractFile* in, uint32_t firstSectorN
 				continue;
 			}
 		}
-
-		printf("run %d: sectors=%" PRId64 ", left=%d\n", curRun, blkx->runs[curRun].sectorCount, numSectors);
 
 		ASSERT(deflateInit(&strm, 1) == Z_OK, "deflateInit");
 
@@ -317,8 +311,6 @@ void extractBLKX(AbstractFile* in, AbstractFile* out, BLKXTable* blkx) {
 		if( blkx->runs[i].compLength == 0) {
 			continue;
 		}
-
-		printf("run %d: start=%" PRId64 " sectors=%" PRId64 ", length=%" PRId64 ", fileOffset=0x%" PRIx64 "\n", i, initialOffset + (blkx->runs[i].sectorStart * SECTOR_SIZE), blkx->runs[i].sectorCount, blkx->runs[i].compLength, blkx->runs[i].compOffset);
 
 		switch(blkx->runs[i].type) {
 			case BLOCK_ZLIB:

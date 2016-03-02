@@ -269,7 +269,6 @@ void removeAllInFolder(HFSCatalogNodeID folderID, Volume* volume, const char* pa
 			fullName[pathLen + 1] = '\0';
 			removeAllInFolder(folder->folderID, volume, fullName);
 		} else {
-			printf("%s\n", fullName);
 			removeFile(fullName, volume);
 		}
 
@@ -281,7 +280,6 @@ void removeAllInFolder(HFSCatalogNodeID folderID, Volume* volume, const char* pa
 
 	if(!isRoot) {
 		*(pathComponent - 1) = '\0';
-		printf("%s\n", fullName);
 		removeFile(fullName, volume);
 	}
 }
@@ -341,7 +339,6 @@ void addAllInFolder(HFSCatalogNodeID folderID, Volume* volume, const char* paren
 
 		if((tmp = opendir(ent->d_name)) != NULL) {
 			closedir(tmp);
-			printf("folder: %s\n", fullName); fflush(stdout);
 
 			if(cnid == 0) {
 				cnid = newFolder(fullName, volume);
@@ -353,7 +350,6 @@ void addAllInFolder(HFSCatalogNodeID folderID, Volume* volume, const char* paren
 			addAllInFolder(cnid, volume, fullName);
 			ASSERT(chdir(cwd) == 0, "chdir");
 		} else {
-			printf("file: %s\n", fullName);	fflush(stdout);
 			if(cnid == 0) {
 				cnid = newFile(fullName, volume);
 			}
@@ -426,7 +422,6 @@ void extractAllInFolder(HFSCatalogNodeID folderID, Volume* volume) {
 
 		if(list->record->recordType == kHFSPlusFolderRecord) {
 			folder = (HFSPlusCatalogFolder*)list->record;
-			printf("folder: %s\n", name);
 			if(stat(name, &status) != 0) {
 				ASSERT(mkdir(name, 0755) == 0, "mkdir");
 			}
@@ -434,7 +429,6 @@ void extractAllInFolder(HFSCatalogNodeID folderID, Volume* volume) {
 			extractAllInFolder(folder->folderID, volume);
 			ASSERT(chdir(cwd) == 0, "chdir");
 		} else if(list->record->recordType == kHFSPlusFileRecord) {
-			printf("file: %s\n", name);
 			file = (HFSPlusCatalogFile*)list->record;
 			outFile = createAbstractFileFromFile(fopen(name, "wb"));
 			if(outFile != NULL) {
@@ -681,20 +675,15 @@ void hfs_untar(Volume* volume, AbstractFile* tarFile) {
 		HFSPlusCatalogRecord* record = getRecordFromPath3(fileName, volume, NULL, NULL, TRUE, FALSE, kHFSRootFolderID);
 		if(record) {
 			if(record->recordType == kHFSPlusFolderRecord || type == 5) {
-				if(!silence)
-					printf("ignoring %s, type = %d\n", fileName, type);
 				free(record);
 				goto loop;
 			} else {
-				printf("replacing %s\n", fileName);
 				free(record);
 				removeFile(fileName, volume);
 			}
 		}
 
 		if(type == 0) {
-			if(!silence)
-				printf("file: %s (%04o), size = %d\n", fileName, mode, size);
 			void* buffer = malloc(size);
 			tarFile->seek(tarFile, curRecord + 512);
 			tarFile->read(tarFile, buffer, size);
@@ -702,12 +691,8 @@ void hfs_untar(Volume* volume, AbstractFile* tarFile) {
 			add_hfs(volume, inFile, fileName);
 			free(buffer);
 		} else if(type == 5) {
-			if(!silence)
-				printf("directory: %s (%04o)\n", fileName, mode);
 			newFolder(fileName, volume);
 		} else if(type == 2) {
-			if(!silence)
-				printf("symlink: %s (%04o) -> %s\n", fileName, mode, target);
 			makeSymlink(fileName, target, volume);
 		}
 
