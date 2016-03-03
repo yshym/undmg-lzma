@@ -21,13 +21,25 @@ int main(int argc, char *argv[]) {
   AbstractFile *in = createAbstractFileFromFile(stdin);
   AbstractFile *out = createAbstractFileFromFile(tmpfile());
 
-  extractDmg(in, out, -1);
+  if (!out) {
+    fprintf(stderr, "error: can't create tmp file\n");
+    return 1;
+  }
+
+  int result = extractDmg(in, out, -1);
+  if (!result) {
+    fprintf(stderr, "error: the provided data was not a DMG file.\n");
+  }
 
   Volume *volume = openVolume(IOFuncFromAbstractFile(out));
 
   HFSPlusCatalogRecord *record = getRecordFromPath("/", volume, NULL, NULL);
 
   extractAllInFolder(((HFSPlusCatalogFolder *)record)->folderID, volume);
+
+  closeVolume(volume);
+
+  free(out);
 
   return 0;
 }
