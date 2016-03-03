@@ -1,466 +1,512 @@
 #include <string.h>
-#include "common.h"
+
 #include "abstractfile.h"
+#include "common.h"
 #include "dmg.h"
 
-uint32_t calculateMasterChecksum(ResourceKey* resources);
+uint32_t calculateMasterChecksum(ResourceKey *resources);
 
-int extractDmg(AbstractFile* abstractIn, AbstractFile* abstractOut, int partNum) {
-	off_t fileLength;
-	UDIFResourceFile resourceFile;
-	ResourceKey* resources;
-	ResourceData* blkxData;
+int extractDmg(AbstractFile *abstractIn, AbstractFile *abstractOut,
+               int partNum) {
+  off_t fileLength;
+  UDIFResourceFile resourceFile;
+  ResourceKey *resources;
+  ResourceData *blkxData;
 
-	fileLength = abstractIn->getLength(abstractIn);
-	abstractIn->seek(abstractIn, fileLength - sizeof(UDIFResourceFile));
-	readUDIFResourceFile(abstractIn, &resourceFile);
-	resources = readResources(abstractIn, &resourceFile);
+  fileLength = abstractIn->getLength(abstractIn);
+  abstractIn->seek(abstractIn, fileLength - sizeof(UDIFResourceFile));
+  readUDIFResourceFile(abstractIn, &resourceFile);
+  resources = readResources(abstractIn, &resourceFile);
 
-	/* reasonable assumption that 2 is the main partition, given that that's usually the case in SPUD layouts */
-	if(partNum < 0) {
-		blkxData = getResourceByKey(resources, "blkx")->data;
-		while(blkxData != NULL) {
-			if(strstr(blkxData->name, "Apple_HFS") != NULL) {
-				break;
-			}
-			blkxData = blkxData->next;
-		}
-	} else {
-		blkxData = getDataByID(getResourceByKey(resources, "blkx"), partNum);
-	}
+  /* reasonable assumption that 2 is the main partition, given that that's
+   * usually the case in SPUD layouts */
+  if (partNum < 0) {
+    blkxData = getResourceByKey(resources, "blkx")->data;
+    while (blkxData != NULL) {
+      if (strstr(blkxData->name, "Apple_HFS") != NULL) {
+        break;
+      }
+      blkxData = blkxData->next;
+    }
+  } else {
+    blkxData = getDataByID(getResourceByKey(resources, "blkx"), partNum);
+  }
 
-	if(blkxData) {
-		extractBLKX(abstractIn, abstractOut, (BLKXTable*)(blkxData->data));
-	}
+  if (blkxData) {
+    extractBLKX(abstractIn, abstractOut, (BLKXTable *)(blkxData->data));
+  }
 
-	releaseResources(resources);
+  releaseResources(resources);
 
-	return TRUE;
+  return TRUE;
 }
 
-uint32_t calculateMasterChecksum(ResourceKey* resources) {
-	ResourceKey* blkxKeys;
-	ResourceData* data;
-	BLKXTable* blkx;
-	unsigned char* buffer;
-	int blkxNum;
-	uint32_t result;
+uint32_t calculateMasterChecksum(ResourceKey *resources) {
+  ResourceKey *blkxKeys;
+  ResourceData *data;
+  BLKXTable *blkx;
+  unsigned char *buffer;
+  int blkxNum;
+  uint32_t result;
 
-	blkxKeys = getResourceByKey(resources, "blkx");
+  blkxKeys = getResourceByKey(resources, "blkx");
 
-	data = blkxKeys->data;
-	blkxNum = 0;
-	while(data != NULL) {
-		blkx = (BLKXTable*) data->data;
-		if(blkx->checksum.type == CHECKSUM_CRC32) {
-			blkxNum++;
-		}
-		data = data->next;
-	}
+  data = blkxKeys->data;
+  blkxNum = 0;
+  while (data != NULL) {
+    blkx = (BLKXTable *)data->data;
+    if (blkx->checksum.type == CHECKSUM_CRC32) {
+      blkxNum++;
+    }
+    data = data->next;
+  }
 
-	buffer = (unsigned char*) malloc(4 * blkxNum) ;
-	data = blkxKeys->data;
-	blkxNum = 0;
-	while(data != NULL) {
-		blkx = (BLKXTable*) data->data;
-		if(blkx->checksum.type == CHECKSUM_CRC32) {
-			buffer[(blkxNum * 4) + 0] = (blkx->checksum.data[0] >> 24) & 0xff;
-			buffer[(blkxNum * 4) + 1] = (blkx->checksum.data[0] >> 16) & 0xff;
-			buffer[(blkxNum * 4) + 2] = (blkx->checksum.data[0] >> 8) & 0xff;
-			buffer[(blkxNum * 4) + 3] = (blkx->checksum.data[0] >> 0) & 0xff;
-			blkxNum++;
-		}
-		data = data->next;
-	}
+  buffer = (unsigned char *)malloc(4 * blkxNum);
+  data = blkxKeys->data;
+  blkxNum = 0;
+  while (data != NULL) {
+    blkx = (BLKXTable *)data->data;
+    if (blkx->checksum.type == CHECKSUM_CRC32) {
+      buffer[(blkxNum * 4) + 0] = (blkx->checksum.data[0] >> 24) & 0xff;
+      buffer[(blkxNum * 4) + 1] = (blkx->checksum.data[0] >> 16) & 0xff;
+      buffer[(blkxNum * 4) + 2] = (blkx->checksum.data[0] >> 8) & 0xff;
+      buffer[(blkxNum * 4) + 3] = (blkx->checksum.data[0] >> 0) & 0xff;
+      blkxNum++;
+    }
+    data = data->next;
+  }
 
-	result = 0;
-	CRC32Checksum(&result, (const unsigned char*) buffer, 4 * blkxNum);
-	free(buffer);
-	return result;
+  result = 0;
+  CRC32Checksum(&result, (const unsigned char *)buffer, 4 * blkxNum);
+  free(buffer);
+  return result;
 }
 
-int buildDmg(AbstractFile* abstractIn, AbstractFile* abstractOut, unsigned int BlockSize) {
-	io_func* io;
-	Volume* volume;
+int buildDmg(AbstractFile *abstractIn, AbstractFile *abstractOut,
+             unsigned int BlockSize) {
+  io_func *io;
+  Volume *volume;
 
-	HFSPlusVolumeHeader* volumeHeader;
-	DriverDescriptorRecord* DDM;
-	Partition* partitions;
+  HFSPlusVolumeHeader *volumeHeader;
+  DriverDescriptorRecord *DDM;
+  Partition *partitions;
 
-	ResourceKey* resources;
-	ResourceKey* curResource;
+  ResourceKey *resources;
+  ResourceKey *curResource;
 
-	NSizResource* nsiz;
-	NSizResource* myNSiz;
-	CSumResource csum;
+  NSizResource *nsiz;
+  NSizResource *myNSiz;
+  CSumResource csum;
 
-	BLKXTable* blkx;
-	ChecksumToken uncompressedToken;
+  BLKXTable *blkx;
+  ChecksumToken uncompressedToken;
 
-	ChecksumToken dataForkToken;
+  ChecksumToken dataForkToken;
 
-	UDIFResourceFile koly;
+  UDIFResourceFile koly;
 
-	off_t plistOffset;
-	uint32_t plistSize;
-	uint32_t dataForkChecksum;
+  off_t plistOffset;
+  uint32_t plistSize;
+  uint32_t dataForkChecksum;
 
-	io = IOFuncFromAbstractFile(abstractIn);
-	volume = openVolume(io);
-	volumeHeader = volume->volumeHeader;
+  io = IOFuncFromAbstractFile(abstractIn);
+  volume = openVolume(io);
+  volumeHeader = volume->volumeHeader;
 
-	resources = NULL;
-	nsiz = NULL;
+  resources = NULL;
+  nsiz = NULL;
 
-	memset(&dataForkToken, 0, sizeof(ChecksumToken));
+  memset(&dataForkToken, 0, sizeof(ChecksumToken));
 
-	DDM = createDriverDescriptorMap((volumeHeader->totalBlocks * volumeHeader->blockSize)/SECTOR_SIZE, BlockSize);
+  DDM = createDriverDescriptorMap(
+      (volumeHeader->totalBlocks * volumeHeader->blockSize) / SECTOR_SIZE,
+      BlockSize);
 
-	partitions = createApplePartitionMap((volumeHeader->totalBlocks * volumeHeader->blockSize)/SECTOR_SIZE, HFSX_VOLUME_TYPE, BlockSize);
+  partitions = createApplePartitionMap(
+      (volumeHeader->totalBlocks * volumeHeader->blockSize) / SECTOR_SIZE,
+      HFSX_VOLUME_TYPE, BlockSize);
 
-	int pNum = writeDriverDescriptorMap(-1, abstractOut, DDM, BlockSize, &CRCProxy, (void*) (&dataForkToken), &resources);
-	free(DDM);
-	pNum = writeApplePartitionMap(pNum, abstractOut, partitions, BlockSize, &CRCProxy, (void*) (&dataForkToken), &resources, &nsiz);
-	free(partitions);
-	pNum = writeATAPI(pNum, abstractOut, BlockSize, &CRCProxy, (void*) (&dataForkToken), &resources, &nsiz);
+  int pNum =
+      writeDriverDescriptorMap(-1, abstractOut, DDM, BlockSize, &CRCProxy,
+                               (void *)(&dataForkToken), &resources);
+  free(DDM);
+  pNum = writeApplePartitionMap(pNum, abstractOut, partitions, BlockSize,
+                                &CRCProxy, (void *)(&dataForkToken), &resources,
+                                &nsiz);
+  free(partitions);
+  pNum = writeATAPI(pNum, abstractOut, BlockSize, &CRCProxy,
+                    (void *)(&dataForkToken), &resources, &nsiz);
 
-	memset(&uncompressedToken, 0, sizeof(uncompressedToken));
-	SHA1Init(&(uncompressedToken.sha1));
+  memset(&uncompressedToken, 0, sizeof(uncompressedToken));
+  SHA1Init(&(uncompressedToken.sha1));
 
-	abstractIn->seek(abstractIn, 0);
-	blkx = insertBLKX(abstractOut, abstractIn, USER_OFFSET, (volumeHeader->totalBlocks * volumeHeader->blockSize)/SECTOR_SIZE,
-				pNum, CHECKSUM_CRC32, &BlockSHA1CRC, &uncompressedToken, &CRCProxy, &dataForkToken, volume, 1);
+  abstractIn->seek(abstractIn, 0);
+  blkx = insertBLKX(abstractOut, abstractIn, USER_OFFSET,
+                    (volumeHeader->totalBlocks * volumeHeader->blockSize) /
+                        SECTOR_SIZE,
+                    pNum, CHECKSUM_CRC32, &BlockSHA1CRC, &uncompressedToken,
+                    &CRCProxy, &dataForkToken, volume, 1);
 
-	blkx->checksum.data[0] = uncompressedToken.crc;
+  blkx->checksum.data[0] = uncompressedToken.crc;
 
-	char pName[100];
-	sprintf(pName, "Mac_OS_X (Apple_HFSX : %d)", pNum + 1);
-	resources = insertData(resources, "blkx", pNum, pName, (const char*) blkx, sizeof(BLKXTable) + (blkx->blocksRunCount * sizeof(BLKXRun)), ATTRIBUTE_HDIUTIL);
-	free(blkx);
+  char pName[100];
+  sprintf(pName, "Mac_OS_X (Apple_HFSX : %d)", pNum + 1);
+  resources =
+      insertData(resources, "blkx", pNum, pName, (const char *)blkx,
+                 sizeof(BLKXTable) + (blkx->blocksRunCount * sizeof(BLKXRun)),
+                 ATTRIBUTE_HDIUTIL);
+  free(blkx);
 
-	csum.version = 1;
-	csum.type = CHECKSUM_MKBLOCK;
-	csum.checksum = uncompressedToken.block;
+  csum.version = 1;
+  csum.type = CHECKSUM_MKBLOCK;
+  csum.checksum = uncompressedToken.block;
 
-	resources = insertData(resources, "cSum", 2, "", (const char*) (&csum), sizeof(csum), 0);
+  resources = insertData(resources, "cSum", 2, "", (const char *)(&csum),
+                         sizeof(csum), 0);
 
-	myNSiz = (NSizResource*) malloc(sizeof(NSizResource));
-	memset(myNSiz, 0, sizeof(NSizResource));
-	myNSiz->isVolume = TRUE;
-	myNSiz->blockChecksum2 = uncompressedToken.block;
-	myNSiz->partitionNumber = 2;
-	myNSiz->version = 6;
-	myNSiz->bytes = (volumeHeader->totalBlocks - volumeHeader->freeBlocks) * volumeHeader->blockSize;
-	myNSiz->modifyDate = volumeHeader->modifyDate;
-	myNSiz->volumeSignature = volumeHeader->signature;
-	myNSiz->sha1Digest = (unsigned char *)malloc(20);
-	SHA1Final(myNSiz->sha1Digest, &(uncompressedToken.sha1));
-	myNSiz->next = NULL;
-	if(nsiz == NULL) {
-		nsiz = myNSiz;
-	} else {
-		NSizResource* curNsiz = nsiz;
-		while(curNsiz->next != NULL)
-		{
-			curNsiz = curNsiz->next;
-		}
-		curNsiz->next = myNSiz;
-	}
+  myNSiz = (NSizResource *)malloc(sizeof(NSizResource));
+  memset(myNSiz, 0, sizeof(NSizResource));
+  myNSiz->isVolume = TRUE;
+  myNSiz->blockChecksum2 = uncompressedToken.block;
+  myNSiz->partitionNumber = 2;
+  myNSiz->version = 6;
+  myNSiz->bytes = (volumeHeader->totalBlocks - volumeHeader->freeBlocks) *
+                  volumeHeader->blockSize;
+  myNSiz->modifyDate = volumeHeader->modifyDate;
+  myNSiz->volumeSignature = volumeHeader->signature;
+  myNSiz->sha1Digest = (unsigned char *)malloc(20);
+  SHA1Final(myNSiz->sha1Digest, &(uncompressedToken.sha1));
+  myNSiz->next = NULL;
+  if (nsiz == NULL) {
+    nsiz = myNSiz;
+  } else {
+    NSizResource *curNsiz = nsiz;
+    while (curNsiz->next != NULL) {
+      curNsiz = curNsiz->next;
+    }
+    curNsiz->next = myNSiz;
+  }
 
-	pNum++;
+  pNum++;
 
-	pNum = writeFreePartition(pNum, abstractOut, USER_OFFSET + (volumeHeader->totalBlocks * volumeHeader->blockSize)/SECTOR_SIZE,
-			(FREE_SIZE + (BlockSize / SECTOR_SIZE / 2)) / (BlockSize / SECTOR_SIZE) * (BlockSize / SECTOR_SIZE), &resources);
+  pNum = writeFreePartition(
+      pNum, abstractOut,
+      USER_OFFSET +
+          (volumeHeader->totalBlocks * volumeHeader->blockSize) / SECTOR_SIZE,
+      (FREE_SIZE + (BlockSize / SECTOR_SIZE / 2)) / (BlockSize / SECTOR_SIZE) *
+          (BlockSize / SECTOR_SIZE),
+      &resources);
 
-	dataForkChecksum = dataForkToken.crc;
+  dataForkChecksum = dataForkToken.crc;
 
-	curResource = resources;
-	while(curResource->next != NULL)
-		curResource = curResource->next;
+  curResource = resources;
+  while (curResource->next != NULL)
+    curResource = curResource->next;
 
-	curResource->next = writeNSiz(nsiz);
-	curResource = curResource->next;
-	releaseNSiz(nsiz);
+  curResource->next = writeNSiz(nsiz);
+  curResource = curResource->next;
+  releaseNSiz(nsiz);
 
-	curResource->next = makePlst();
-	curResource = curResource->next;
+  curResource->next = makePlst();
+  curResource = curResource->next;
 
-	curResource->next = makeSize(volumeHeader);
-	curResource = curResource->next;
+  curResource->next = makeSize(volumeHeader);
+  curResource = curResource->next;
 
-	plistOffset = abstractOut->tell(abstractOut);
-	writeResources(abstractOut, resources);
-	plistSize = abstractOut->tell(abstractOut) - plistOffset;
+  plistOffset = abstractOut->tell(abstractOut);
+  writeResources(abstractOut, resources);
+  plistSize = abstractOut->tell(abstractOut) - plistOffset;
 
-	koly.fUDIFSignature = KOLY_SIGNATURE;
-	koly.fUDIFVersion = 4;
-	koly.fUDIFHeaderSize = sizeof(koly);
-	koly.fUDIFFlags = kUDIFFlagsFlattened;
-	koly.fUDIFRunningDataForkOffset = 0;
-	koly.fUDIFDataForkOffset = 0;
-	koly.fUDIFDataForkLength = plistOffset;
-	koly.fUDIFRsrcForkOffset = 0;
-	koly.fUDIFRsrcForkLength = 0;
+  koly.fUDIFSignature = KOLY_SIGNATURE;
+  koly.fUDIFVersion = 4;
+  koly.fUDIFHeaderSize = sizeof(koly);
+  koly.fUDIFFlags = kUDIFFlagsFlattened;
+  koly.fUDIFRunningDataForkOffset = 0;
+  koly.fUDIFDataForkOffset = 0;
+  koly.fUDIFDataForkLength = plistOffset;
+  koly.fUDIFRsrcForkOffset = 0;
+  koly.fUDIFRsrcForkLength = 0;
 
-	koly.fUDIFSegmentNumber = 1;
-	koly.fUDIFSegmentCount = 1;
-	koly.fUDIFSegmentID.data1 = rand();
-	koly.fUDIFSegmentID.data2 = rand();
-	koly.fUDIFSegmentID.data3 = rand();
-	koly.fUDIFSegmentID.data4 = rand();
-	koly.fUDIFDataForkChecksum.type = CHECKSUM_CRC32;
-	koly.fUDIFDataForkChecksum.size = 0x20;
-	koly.fUDIFDataForkChecksum.data[0] = dataForkChecksum;
-	koly.fUDIFXMLOffset = plistOffset;
-	koly.fUDIFXMLLength = plistSize;
-	memset(&(koly.reserved1), 0, 0x78);
+  koly.fUDIFSegmentNumber = 1;
+  koly.fUDIFSegmentCount = 1;
+  koly.fUDIFSegmentID.data1 = rand();
+  koly.fUDIFSegmentID.data2 = rand();
+  koly.fUDIFSegmentID.data3 = rand();
+  koly.fUDIFSegmentID.data4 = rand();
+  koly.fUDIFDataForkChecksum.type = CHECKSUM_CRC32;
+  koly.fUDIFDataForkChecksum.size = 0x20;
+  koly.fUDIFDataForkChecksum.data[0] = dataForkChecksum;
+  koly.fUDIFXMLOffset = plistOffset;
+  koly.fUDIFXMLLength = plistSize;
+  memset(&(koly.reserved1), 0, 0x78);
 
-	koly.fUDIFMasterChecksum.type = CHECKSUM_CRC32;
-	koly.fUDIFMasterChecksum.size = 0x20;
-	koly.fUDIFMasterChecksum.data[0] = calculateMasterChecksum(resources);
+  koly.fUDIFMasterChecksum.type = CHECKSUM_CRC32;
+  koly.fUDIFMasterChecksum.size = 0x20;
+  koly.fUDIFMasterChecksum.data[0] = calculateMasterChecksum(resources);
 
-	koly.fUDIFImageVariant = kUDIFDeviceImageType;
-	koly.fUDIFSectorCount = (volumeHeader->totalBlocks * volumeHeader->blockSize)/SECTOR_SIZE
-		+ ((EXTRA_SIZE + (BlockSize / SECTOR_SIZE / 2)) / (BlockSize / SECTOR_SIZE) * (BlockSize / SECTOR_SIZE));
-	koly.reserved2 = 0;
-	koly.reserved3 = 0;
-	koly.reserved4 = 0;
+  koly.fUDIFImageVariant = kUDIFDeviceImageType;
+  koly.fUDIFSectorCount =
+      (volumeHeader->totalBlocks * volumeHeader->blockSize) / SECTOR_SIZE +
+      ((EXTRA_SIZE + (BlockSize / SECTOR_SIZE / 2)) /
+       (BlockSize / SECTOR_SIZE) * (BlockSize / SECTOR_SIZE));
+  koly.reserved2 = 0;
+  koly.reserved3 = 0;
+  koly.reserved4 = 0;
 
-	writeUDIFResourceFile(abstractOut, &koly);
+  writeUDIFResourceFile(abstractOut, &koly);
 
-	releaseResources(resources);
+  releaseResources(resources);
 
-	abstractOut->close(abstractOut);
-	closeVolume(volume);
-	CLOSE(io);
+  abstractOut->close(abstractOut);
+  closeVolume(volume);
+  CLOSE(io);
 
-	return TRUE;
+  return TRUE;
 }
 
-int convertToDMG(AbstractFile* abstractIn, AbstractFile* abstractOut) {
-	Partition* partitions;
-	DriverDescriptorRecord* DDM;
-	int i;
+int convertToDMG(AbstractFile *abstractIn, AbstractFile *abstractOut) {
+  Partition *partitions;
+  DriverDescriptorRecord *DDM;
+  int i;
 
-	BLKXTable* blkx;
-	ResourceKey* resources;
-	ResourceKey* curResource;
+  BLKXTable *blkx;
+  ResourceKey *resources;
+  ResourceKey *curResource;
 
-	ChecksumToken dataForkToken;
-	ChecksumToken uncompressedToken;
+  ChecksumToken dataForkToken;
+  ChecksumToken uncompressedToken;
 
-	NSizResource* nsiz;
-	NSizResource* myNSiz;
-	CSumResource csum;
+  NSizResource *nsiz;
+  NSizResource *myNSiz;
+  CSumResource csum;
 
-	off_t plistOffset;
-	uint32_t plistSize;
-	uint32_t dataForkChecksum;
-	uint64_t numSectors;
+  off_t plistOffset;
+  uint32_t plistSize;
+  uint32_t dataForkChecksum;
+  uint64_t numSectors;
 
-	UDIFResourceFile koly;
+  UDIFResourceFile koly;
 
-	char partitionName[512];
+  char partitionName[512];
 
-	off_t fileLength;
-	size_t partitionTableSize;
+  off_t fileLength;
+  size_t partitionTableSize;
 
-	unsigned int BlockSize;
+  unsigned int BlockSize;
 
-	numSectors = 0;
+  numSectors = 0;
 
-	resources = NULL;
-	nsiz = NULL;
-	myNSiz = NULL;
-	memset(&dataForkToken, 0, sizeof(ChecksumToken));
+  resources = NULL;
+  nsiz = NULL;
+  myNSiz = NULL;
+  memset(&dataForkToken, 0, sizeof(ChecksumToken));
 
-	partitions = (Partition*) malloc(SECTOR_SIZE);
+  partitions = (Partition *)malloc(SECTOR_SIZE);
 
-	DDM = (DriverDescriptorRecord*) malloc(SECTOR_SIZE);
-	abstractIn->seek(abstractIn, 0);
-	ASSERT(abstractIn->read(abstractIn, DDM, SECTOR_SIZE) == SECTOR_SIZE, "fread");
-	flipDriverDescriptorRecord(DDM, FALSE);
+  DDM = (DriverDescriptorRecord *)malloc(SECTOR_SIZE);
+  abstractIn->seek(abstractIn, 0);
+  ASSERT(abstractIn->read(abstractIn, DDM, SECTOR_SIZE) == SECTOR_SIZE,
+         "fread");
+  flipDriverDescriptorRecord(DDM, FALSE);
 
-	if(DDM->sbSig == DRIVER_DESCRIPTOR_SIGNATURE) {
-		BlockSize = DDM->sbBlkSize;
-		int pNum = writeDriverDescriptorMap(-1, abstractOut, DDM, BlockSize, &CRCProxy, (void*) (&dataForkToken), &resources);
-		free(DDM);
+  if (DDM->sbSig == DRIVER_DESCRIPTOR_SIGNATURE) {
+    BlockSize = DDM->sbBlkSize;
+    int pNum =
+        writeDriverDescriptorMap(-1, abstractOut, DDM, BlockSize, &CRCProxy,
+                                 (void *)(&dataForkToken), &resources);
+    free(DDM);
 
-		abstractIn->seek(abstractIn, BlockSize);
-		ASSERT(abstractIn->read(abstractIn, partitions, BlockSize) == BlockSize, "fread");
-		flipPartitionMultiple(partitions, FALSE, FALSE, BlockSize);
+    abstractIn->seek(abstractIn, BlockSize);
+    ASSERT(abstractIn->read(abstractIn, partitions, BlockSize) == BlockSize,
+           "fread");
+    flipPartitionMultiple(partitions, FALSE, FALSE, BlockSize);
 
-		partitionTableSize = BlockSize * partitions->pmMapBlkCnt;
-		partitions = (Partition*) realloc(partitions, partitionTableSize);
+    partitionTableSize = BlockSize * partitions->pmMapBlkCnt;
+    partitions = (Partition *)realloc(partitions, partitionTableSize);
 
-		abstractIn->seek(abstractIn, BlockSize);
-		ASSERT(abstractIn->read(abstractIn, partitions, partitionTableSize) == partitionTableSize, "fread");
-		flipPartition(partitions, FALSE, BlockSize);
+    abstractIn->seek(abstractIn, BlockSize);
+    ASSERT(abstractIn->read(abstractIn, partitions, partitionTableSize) ==
+               partitionTableSize,
+           "fread");
+    flipPartition(partitions, FALSE, BlockSize);
 
-		for(i = 0; i < partitions->pmMapBlkCnt; i++) {
-			if(partitions[i].pmSig != APPLE_PARTITION_MAP_SIGNATURE) {
-				break;
-			}
+    for (i = 0; i < partitions->pmMapBlkCnt; i++) {
+      if (partitions[i].pmSig != APPLE_PARTITION_MAP_SIGNATURE) {
+        break;
+      }
 
-			sprintf(partitionName, "%s (%s : %d)", partitions[i].pmPartName, partitions[i].pmParType, i + 1);
+      sprintf(partitionName, "%s (%s : %d)", partitions[i].pmPartName,
+              partitions[i].pmParType, i + 1);
 
-			memset(&uncompressedToken, 0, sizeof(uncompressedToken));
+      memset(&uncompressedToken, 0, sizeof(uncompressedToken));
 
-			abstractIn->seek(abstractIn, partitions[i].pmPyPartStart * BlockSize);
-			blkx = insertBLKX(abstractOut, abstractIn, partitions[i].pmPyPartStart, partitions[i].pmPartBlkCnt, i, CHECKSUM_CRC32,
-						&BlockCRC, &uncompressedToken, &CRCProxy, &dataForkToken, NULL, 1);
+      abstractIn->seek(abstractIn, partitions[i].pmPyPartStart * BlockSize);
+      blkx =
+          insertBLKX(abstractOut, abstractIn, partitions[i].pmPyPartStart,
+                     partitions[i].pmPartBlkCnt, i, CHECKSUM_CRC32, &BlockCRC,
+                     &uncompressedToken, &CRCProxy, &dataForkToken, NULL, 1);
 
-			blkx->checksum.data[0] = uncompressedToken.crc;
-			resources = insertData(resources, "blkx", i, partitionName, (const char*) blkx, sizeof(BLKXTable) + (blkx->blocksRunCount * sizeof(BLKXRun)), ATTRIBUTE_HDIUTIL);
-			free(blkx);
+      blkx->checksum.data[0] = uncompressedToken.crc;
+      resources = insertData(
+          resources, "blkx", i, partitionName, (const char *)blkx,
+          sizeof(BLKXTable) + (blkx->blocksRunCount * sizeof(BLKXRun)),
+          ATTRIBUTE_HDIUTIL);
+      free(blkx);
 
-			memset(&csum, 0, sizeof(CSumResource));
-			csum.version = 1;
-			csum.type = CHECKSUM_MKBLOCK;
-			csum.checksum = uncompressedToken.block;
-			resources = insertData(resources, "cSum", i, "", (const char*) (&csum), sizeof(csum), 0);
+      memset(&csum, 0, sizeof(CSumResource));
+      csum.version = 1;
+      csum.type = CHECKSUM_MKBLOCK;
+      csum.checksum = uncompressedToken.block;
+      resources = insertData(resources, "cSum", i, "", (const char *)(&csum),
+                             sizeof(csum), 0);
 
-			if(nsiz == NULL) {
-				nsiz = myNSiz = (NSizResource*) malloc(sizeof(NSizResource));
-			} else {
-				myNSiz->next = (NSizResource*) malloc(sizeof(NSizResource));
-				myNSiz = myNSiz->next;
-			}
+      if (nsiz == NULL) {
+        nsiz = myNSiz = (NSizResource *)malloc(sizeof(NSizResource));
+      } else {
+        myNSiz->next = (NSizResource *)malloc(sizeof(NSizResource));
+        myNSiz = myNSiz->next;
+      }
 
-			memset(myNSiz, 0, sizeof(NSizResource));
-			myNSiz->isVolume = FALSE;
-			myNSiz->blockChecksum2 = uncompressedToken.block;
-			myNSiz->partitionNumber = i;
-			myNSiz->version = 6;
-			myNSiz->next = NULL;
+      memset(myNSiz, 0, sizeof(NSizResource));
+      myNSiz->isVolume = FALSE;
+      myNSiz->blockChecksum2 = uncompressedToken.block;
+      myNSiz->partitionNumber = i;
+      myNSiz->version = 6;
+      myNSiz->next = NULL;
 
-			if((partitions[i].pmPyPartStart + partitions[i].pmPartBlkCnt) > numSectors) {
-				numSectors = partitions[i].pmPyPartStart + partitions[i].pmPartBlkCnt;
-			}
-		}
+      if ((partitions[i].pmPyPartStart + partitions[i].pmPartBlkCnt) >
+          numSectors) {
+        numSectors = partitions[i].pmPyPartStart + partitions[i].pmPartBlkCnt;
+      }
+    }
 
-		koly.fUDIFImageVariant = kUDIFDeviceImageType;
-	} else {
-		fileLength = abstractIn->getLength(abstractIn);
+    koly.fUDIFImageVariant = kUDIFDeviceImageType;
+  } else {
+    fileLength = abstractIn->getLength(abstractIn);
 
-		memset(&uncompressedToken, 0, sizeof(uncompressedToken));
+    memset(&uncompressedToken, 0, sizeof(uncompressedToken));
 
-		abstractIn->seek(abstractIn, 0);
-		blkx = insertBLKX(abstractOut, abstractIn, 0, fileLength/SECTOR_SIZE, ENTIRE_DEVICE_DESCRIPTOR, CHECKSUM_CRC32,
-					&BlockCRC, &uncompressedToken, &CRCProxy, &dataForkToken, NULL, 1);
-		resources = insertData(resources, "blkx", 0, "whole disk (unknown partition : 0)", (const char*) blkx, sizeof(BLKXTable) + (blkx->blocksRunCount * sizeof(BLKXRun)), ATTRIBUTE_HDIUTIL);
-		free(blkx);
+    abstractIn->seek(abstractIn, 0);
+    blkx = insertBLKX(abstractOut, abstractIn, 0, fileLength / SECTOR_SIZE,
+                      ENTIRE_DEVICE_DESCRIPTOR, CHECKSUM_CRC32, &BlockCRC,
+                      &uncompressedToken, &CRCProxy, &dataForkToken, NULL, 1);
+    resources =
+        insertData(resources, "blkx", 0, "whole disk (unknown partition : 0)",
+                   (const char *)blkx,
+                   sizeof(BLKXTable) + (blkx->blocksRunCount * sizeof(BLKXRun)),
+                   ATTRIBUTE_HDIUTIL);
+    free(blkx);
 
-		memset(&csum, 0, sizeof(CSumResource));
-		csum.version = 1;
-		csum.type = CHECKSUM_MKBLOCK;
-		csum.checksum = uncompressedToken.block;
-		resources = insertData(resources, "cSum", 0, "", (const char*) (&csum), sizeof(csum), 0);
+    memset(&csum, 0, sizeof(CSumResource));
+    csum.version = 1;
+    csum.type = CHECKSUM_MKBLOCK;
+    csum.checksum = uncompressedToken.block;
+    resources = insertData(resources, "cSum", 0, "", (const char *)(&csum),
+                           sizeof(csum), 0);
 
-		if(nsiz == NULL) {
-			nsiz = myNSiz = (NSizResource*) malloc(sizeof(NSizResource));
-		} else {
-			myNSiz->next = (NSizResource*) malloc(sizeof(NSizResource));
-			myNSiz = myNSiz->next;
-		}
+    if (nsiz == NULL) {
+      nsiz = myNSiz = (NSizResource *)malloc(sizeof(NSizResource));
+    } else {
+      myNSiz->next = (NSizResource *)malloc(sizeof(NSizResource));
+      myNSiz = myNSiz->next;
+    }
 
-		memset(myNSiz, 0, sizeof(NSizResource));
-		myNSiz->isVolume = FALSE;
-		myNSiz->blockChecksum2 = uncompressedToken.block;
-		myNSiz->partitionNumber = 0;
-		myNSiz->version = 6;
-		myNSiz->next = NULL;
+    memset(myNSiz, 0, sizeof(NSizResource));
+    myNSiz->isVolume = FALSE;
+    myNSiz->blockChecksum2 = uncompressedToken.block;
+    myNSiz->partitionNumber = 0;
+    myNSiz->version = 6;
+    myNSiz->next = NULL;
 
-		koly.fUDIFImageVariant = kUDIFPartitionImageType;
-	}
+    koly.fUDIFImageVariant = kUDIFPartitionImageType;
+  }
 
-	dataForkChecksum = dataForkToken.crc;
+  dataForkChecksum = dataForkToken.crc;
 
-	curResource = resources;
-	while(curResource->next != NULL)
-		curResource = curResource->next;
+  curResource = resources;
+  while (curResource->next != NULL)
+    curResource = curResource->next;
 
-	curResource->next = writeNSiz(nsiz);
-	curResource = curResource->next;
-	releaseNSiz(nsiz);
+  curResource->next = writeNSiz(nsiz);
+  curResource = curResource->next;
+  releaseNSiz(nsiz);
 
-	curResource->next = makePlst();
-	curResource = curResource->next;
+  curResource->next = makePlst();
+  curResource = curResource->next;
 
-	plistOffset = abstractOut->tell(abstractOut);
-	writeResources(abstractOut, resources);
-	plistSize = abstractOut->tell(abstractOut) - plistOffset;
+  plistOffset = abstractOut->tell(abstractOut);
+  writeResources(abstractOut, resources);
+  plistSize = abstractOut->tell(abstractOut) - plistOffset;
 
-	koly.fUDIFSignature = KOLY_SIGNATURE;
-	koly.fUDIFVersion = 4;
-	koly.fUDIFHeaderSize = sizeof(koly);
-	koly.fUDIFFlags = kUDIFFlagsFlattened;
-	koly.fUDIFRunningDataForkOffset = 0;
-	koly.fUDIFDataForkOffset = 0;
-	koly.fUDIFDataForkLength = plistOffset;
-	koly.fUDIFRsrcForkOffset = 0;
-	koly.fUDIFRsrcForkLength = 0;
+  koly.fUDIFSignature = KOLY_SIGNATURE;
+  koly.fUDIFVersion = 4;
+  koly.fUDIFHeaderSize = sizeof(koly);
+  koly.fUDIFFlags = kUDIFFlagsFlattened;
+  koly.fUDIFRunningDataForkOffset = 0;
+  koly.fUDIFDataForkOffset = 0;
+  koly.fUDIFDataForkLength = plistOffset;
+  koly.fUDIFRsrcForkOffset = 0;
+  koly.fUDIFRsrcForkLength = 0;
 
-	koly.fUDIFSegmentNumber = 1;
-	koly.fUDIFSegmentCount = 1;
-	koly.fUDIFSegmentID.data1 = rand();
-	koly.fUDIFSegmentID.data2 = rand();
-	koly.fUDIFSegmentID.data3 = rand();
-	koly.fUDIFSegmentID.data4 = rand();
-	koly.fUDIFDataForkChecksum.type = CHECKSUM_CRC32;
-	koly.fUDIFDataForkChecksum.size = 0x20;
-	koly.fUDIFDataForkChecksum.data[0] = dataForkChecksum;
-	koly.fUDIFXMLOffset = plistOffset;
-	koly.fUDIFXMLLength = plistSize;
-	memset(&(koly.reserved1), 0, 0x78);
+  koly.fUDIFSegmentNumber = 1;
+  koly.fUDIFSegmentCount = 1;
+  koly.fUDIFSegmentID.data1 = rand();
+  koly.fUDIFSegmentID.data2 = rand();
+  koly.fUDIFSegmentID.data3 = rand();
+  koly.fUDIFSegmentID.data4 = rand();
+  koly.fUDIFDataForkChecksum.type = CHECKSUM_CRC32;
+  koly.fUDIFDataForkChecksum.size = 0x20;
+  koly.fUDIFDataForkChecksum.data[0] = dataForkChecksum;
+  koly.fUDIFXMLOffset = plistOffset;
+  koly.fUDIFXMLLength = plistSize;
+  memset(&(koly.reserved1), 0, 0x78);
 
-	koly.fUDIFMasterChecksum.type = CHECKSUM_CRC32;
-	koly.fUDIFMasterChecksum.size = 0x20;
-	koly.fUDIFMasterChecksum.data[0] = calculateMasterChecksum(resources);
+  koly.fUDIFMasterChecksum.type = CHECKSUM_CRC32;
+  koly.fUDIFMasterChecksum.size = 0x20;
+  koly.fUDIFMasterChecksum.data[0] = calculateMasterChecksum(resources);
 
-	koly.fUDIFSectorCount = numSectors;
-	koly.reserved2 = 0;
-	koly.reserved3 = 0;
-	koly.reserved4 = 0;
+  koly.fUDIFSectorCount = numSectors;
+  koly.reserved2 = 0;
+  koly.reserved3 = 0;
+  koly.reserved4 = 0;
 
-	writeUDIFResourceFile(abstractOut, &koly);
+  writeUDIFResourceFile(abstractOut, &koly);
 
-	releaseResources(resources);
+  releaseResources(resources);
 
-	abstractIn->close(abstractIn);
-	free(partitions);
+  abstractIn->close(abstractIn);
+  free(partitions);
 
-	abstractOut->close(abstractOut);
+  abstractOut->close(abstractOut);
 
-	return TRUE;
+  return TRUE;
 }
 
-int convertToISO(AbstractFile* abstractIn, AbstractFile* abstractOut) {
-	off_t fileLength;
-	UDIFResourceFile resourceFile;
-	ResourceKey* resources;
-	ResourceData* blkx;
-	BLKXTable* blkxTable;
+int convertToISO(AbstractFile *abstractIn, AbstractFile *abstractOut) {
+  off_t fileLength;
+  UDIFResourceFile resourceFile;
+  ResourceKey *resources;
+  ResourceData *blkx;
+  BLKXTable *blkxTable;
 
-	fileLength = abstractIn->getLength(abstractIn);
-	abstractIn->seek(abstractIn, fileLength - sizeof(UDIFResourceFile));
-	readUDIFResourceFile(abstractIn, &resourceFile);
-	resources = readResources(abstractIn, &resourceFile);
+  fileLength = abstractIn->getLength(abstractIn);
+  abstractIn->seek(abstractIn, fileLength - sizeof(UDIFResourceFile));
+  readUDIFResourceFile(abstractIn, &resourceFile);
+  resources = readResources(abstractIn, &resourceFile);
 
-	blkx = (getResourceByKey(resources, "blkx"))->data;
+  blkx = (getResourceByKey(resources, "blkx"))->data;
 
-	while(blkx != NULL) {
-		blkxTable = (BLKXTable*)(blkx->data);
-		abstractOut->seek(abstractOut, blkxTable->firstSectorNumber * 512);
-		extractBLKX(abstractIn, abstractOut, blkxTable);
-		blkx = blkx->next;
-	}
+  while (blkx != NULL) {
+    blkxTable = (BLKXTable *)(blkx->data);
+    abstractOut->seek(abstractOut, blkxTable->firstSectorNumber * 512);
+    extractBLKX(abstractIn, abstractOut, blkxTable);
+    blkx = blkx->next;
+  }
 
-	abstractOut->close(abstractOut);
+  abstractOut->close(abstractOut);
 
-	releaseResources(resources);
-	abstractIn->close(abstractIn);
+  releaseResources(resources);
+  abstractIn->close(abstractIn);
 
-	return TRUE;
-
+  return TRUE;
 }

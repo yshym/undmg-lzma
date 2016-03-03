@@ -1,67 +1,80 @@
-#include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "dmg.h"
 
-void flipUDIFChecksum(UDIFChecksum* o, char out) {
+void flipUDIFChecksum(UDIFChecksum *o, char out) {
   int i;
 
   FLIPENDIAN(o->type);
 
-  if(out) {
-    for(i = 0; i < o->size; i++) {
+  if (out) {
+    for (i = 0; i < o->size; i++) {
       FLIPENDIAN(o->data[i]);
     }
     FLIPENDIAN(o->size);
   } else {
     FLIPENDIAN(o->size);
-    for(i = 0; i < o->size; i++) {
+    for (i = 0; i < o->size; i++) {
       FLIPENDIAN(o->data[i]);
     }
   }
 }
 
-void readUDIFChecksum(AbstractFile* file, UDIFChecksum* o) {
+void readUDIFChecksum(AbstractFile *file, UDIFChecksum *o) {
   int i;
 
   o->type = readUInt32(file);
   o->size = readUInt32(file);
 
-  for(i = 0; i < 0x20; i++) {
+  for (i = 0; i < 0x20; i++) {
     o->data[i] = readUInt32(file);
   }
 }
 
-void writeUDIFChecksum(AbstractFile* file, UDIFChecksum* o) {
+void writeUDIFChecksum(AbstractFile *file, UDIFChecksum *o) {
   int i;
 
   writeUInt32(file, o->type);
   writeUInt32(file, o->size);
 
-  for(i = 0; i < o->size; i++) {
+  for (i = 0; i < o->size; i++) {
     writeUInt32(file, o->data[i]);
   }
 }
 
-void readUDIFID(AbstractFile* file, UDIFID* o) {
-  o->data4 = readUInt32(file); FLIPENDIAN(o->data4);
-  o->data3 = readUInt32(file); FLIPENDIAN(o->data3);
-  o->data2 = readUInt32(file); FLIPENDIAN(o->data2);
-  o->data1 = readUInt32(file); FLIPENDIAN(o->data1);
+void readUDIFID(AbstractFile *file, UDIFID *o) {
+  o->data4 = readUInt32(file);
+  FLIPENDIAN(o->data4);
+  o->data3 = readUInt32(file);
+  FLIPENDIAN(o->data3);
+  o->data2 = readUInt32(file);
+  FLIPENDIAN(o->data2);
+  o->data1 = readUInt32(file);
+  FLIPENDIAN(o->data1);
 }
 
-void writeUDIFID(AbstractFile* file, UDIFID* o) {
-  FLIPENDIAN(o->data4); writeUInt32(file, o->data4); FLIPENDIAN(o->data4);
-  FLIPENDIAN(o->data3); writeUInt32(file, o->data3); FLIPENDIAN(o->data3);
-  FLIPENDIAN(o->data2); writeUInt32(file, o->data2); FLIPENDIAN(o->data2);
-  FLIPENDIAN(o->data1); writeUInt32(file, o->data1); FLIPENDIAN(o->data1);
+void writeUDIFID(AbstractFile *file, UDIFID *o) {
+  FLIPENDIAN(o->data4);
+  writeUInt32(file, o->data4);
+  FLIPENDIAN(o->data4);
+  FLIPENDIAN(o->data3);
+  writeUInt32(file, o->data3);
+  FLIPENDIAN(o->data3);
+  FLIPENDIAN(o->data2);
+  writeUInt32(file, o->data2);
+  FLIPENDIAN(o->data2);
+  FLIPENDIAN(o->data1);
+  writeUInt32(file, o->data1);
+  FLIPENDIAN(o->data1);
 }
 
-void readUDIFResourceFile(AbstractFile* file, UDIFResourceFile* o) {
+void readUDIFResourceFile(AbstractFile *file, UDIFResourceFile *o) {
   o->fUDIFSignature = readUInt32(file);
 
-  ASSERT(o->fUDIFSignature == 0x6B6F6C79, "readUDIFResourceFile - signature incorrect");
+  ASSERT(o->fUDIFSignature == 0x6B6F6C79,
+         "readUDIFResourceFile - signature incorrect");
 
   o->fUDIFVersion = readUInt32(file);
   o->fUDIFHeaderSize = readUInt32(file);
@@ -94,7 +107,7 @@ void readUDIFResourceFile(AbstractFile* file, UDIFResourceFile* o) {
   o->reserved4 = readUInt32(file);
 }
 
-void writeUDIFResourceFile(AbstractFile* file, UDIFResourceFile* o) {
+void writeUDIFResourceFile(AbstractFile *file, UDIFResourceFile *o) {
   writeUInt32(file, o->fUDIFSignature);
   writeUInt32(file, o->fUDIFVersion);
   writeUInt32(file, o->fUDIFHeaderSize);
