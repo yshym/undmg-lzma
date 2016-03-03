@@ -8,18 +8,18 @@ $ undmg < ./Sublime\ Text\ Build\ 3103.dmg
 
 ## Building
 
-This requires zlib, bzip2, and glibc to build.
+This requires zlib, bzip2, glibc, a linker, and a c compiler to build.
 
 ```sh
-$ git clone https://github.com/matthewbauer/undmg.git
-$ cd undmg
-$ make
+git clone https://github.com/matthewbauer/undmg.git
+cd undmg
+make
 ```
 
 ## Installing
 
 ```sh
-# make install
+make install
 ```
 
 ## DMG
