@@ -4,7 +4,6 @@
 #include <string.h>
 
 #include "dmg.h"
-#include "filevault.h"
 #include "hfsplus.h"
 #include "hfslib.h"
 
