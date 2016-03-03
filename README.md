@@ -3,7 +3,7 @@ Extract a DMG file.
 
 ## Usage
 ```sh
-./undmg < ./Sublime\ Text\ Build\ 3103.dmg
+undmg < ./Sublime\ Text\ Build\ 3103.dmg
 ```
 
 ## Building
