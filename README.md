@@ -3,17 +3,23 @@ Extract a DMG file.
 
 ## Usage
 ```sh
-undmg < ./Sublime\ Text\ Build\ 3103.dmg
+$ undmg < ./Sublime\ Text\ Build\ 3103.dmg
 ```
 
 ## Building
 
 This requires zlib, bzip2, and glibc to build.
 
-```
+```sh
 $ git clone https://github.com/matthewbauer/undmg.git
 $ cd undmg
 $ make
+```
+
+## Installing
+
+```sh
+# make install
 ```
 
 ## DMG
