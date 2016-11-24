@@ -12,6 +12,7 @@
 #include "hfscompress.h"
 
 #include <sys/stat.h>
+#include <fcntl.h>
 
 #define BUFSIZE 1024 * 1024
 
@@ -430,6 +431,8 @@ void extractAllInFolder(HFSCatalogNodeID folderID, Volume *volume) {
   AbstractFile *outFile;
   struct stat status;
 
+  int fd;
+
   ASSERT(getcwd(cwd, 1024) != NULL, "cannot get current working directory");
 
   theList = list = getFolderContents(folderID, volume);
@@ -454,10 +457,12 @@ void extractAllInFolder(HFSCatalogNodeID folderID, Volume *volume) {
       ASSERT(chdir(cwd) == 0, "chdir");
     } else if (list->record->recordType == kHFSPlusFileRecord) {
       file = (HFSPlusCatalogFile *)list->record;
-      outFile = createAbstractFileFromFile(fopen(name, "wb"));
+      fd = open(name, O_CREAT | O_WRONLY, file->permissions.fileMode);
+      outFile = createAbstractFileFromFile(fdopen(fd, "wb"));
       if (outFile != NULL) {
         writeToFile(file, outFile, volume);
         outFile->close(outFile);
+        close(fd);
       } else {
         printf("WARNING: cannot fopen %s\n", name);
       }
