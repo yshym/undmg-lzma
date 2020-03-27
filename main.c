@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "dmg.h"
 #include "hfslib.h"
@@ -18,7 +19,23 @@ void TestByteOrder() {
 int main(int argc, char *argv[]) {
   TestByteOrder();
 
-  AbstractFile *in = createAbstractFileFromFile(stdin);
+  AbstractFile *in;
+  FILE* f;
+  if (argc == 2) {
+    f = fopen(argv[1], "rb");
+    in = createAbstractFileFromFile(f);
+  } else if (argc > 2) {
+    fprintf(stderr, "error: too many arguments provided\n");
+    return 1;
+  } else {
+    if (!isatty(fileno(stdin))) {
+      in = createAbstractFileFromFile(stdin);
+    } else {
+      fprintf(stderr, "error: stdin is a tty, quiting\n");
+      return 1;
+    }
+  }
+
   AbstractFile *out = createAbstractFileFromFile(tmpfile());
 
   if (!out) {
@@ -39,6 +56,7 @@ int main(int argc, char *argv[]) {
 
   closeVolume(volume);
 
+  fclose(f);
   free(out);
 
   return 0;
