@@ -9,9 +9,13 @@ TARGET=$(PREFIX)/bin/$(OUT)
 LDFLAGS=
 CFLAGS=
 
+.PHONY: all
+all: $(OUT)
+
 $(OUT): $(OBJ)
 	$(LD) $(LDFLAGS) $(LIB) $^ -o $@
 
+.PHONY: install
 install: $(TARGET)
 
 $(TARGET): $(OUT)
@@ -21,5 +25,6 @@ $(TARGET): $(OUT)
 %.o: %.c
 	$(CC) $(CFLAGS) $^ -o $@
 
+.PHONY: clean
 clean:
 	rm -f $(OBJ) $(OUT)
