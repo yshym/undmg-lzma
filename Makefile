@@ -6,9 +6,11 @@ CC=cc -c
 LD=cc
 PREFIX=/usr/local
 TARGET=$(PREFIX)/bin/$(OUT)
+LDFLAGS=
+CFLAGS=
 
 $(OUT): $(OBJ)
-	$(LD) $(LIB) $^ -o $@
+	$(LD) $(LDFLAGS) $(LIB) $^ -o $@
 
 install: $(TARGET)
 
@@ -17,7 +19,7 @@ $(TARGET): $(OUT)
 	install $(OUT) $(PREFIX)/bin/
 
 %.o: %.c
-	$(CC) $^ -o $@
+	$(CC) $(CFLAGS) $^ -o $@
 
 clean:
 	rm -f $(OBJ) $(OUT)
