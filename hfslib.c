@@ -496,7 +496,7 @@ void extractAllInFolder(HFSCatalogNodeID folderID, Volume *volume) {
         }
 
         CLOSE(io);
-      } else if (file->permissions.fileMode > 0) {
+      } else if (file->permissions.fileMode > 0x8000) {
         fd = open(name, O_CREAT | O_WRONLY, file->permissions.fileMode);
         outFile = createAbstractFileFromFile(fdopen(fd, "wb"));
         if (outFile != NULL) {
