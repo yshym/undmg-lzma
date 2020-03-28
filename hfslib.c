@@ -477,9 +477,10 @@ void extractAllInFolder(HFSCatalogNodeID folderID, Volume *volume) {
       extractAllInFolder(folder->folderID, volume);
       ASSERT(chdir(cwd) == 0, "chdir");
     } else if (list->record->recordType == kHFSPlusFileRecord) {
-      if (((HFSPlusCatalogFile *)list->record)->userInfo.fileType == kSymLinkFileType) {
+      file = (HFSPlusCatalogFile *)list->record;
+      if (file->userInfo.fileType == kSymLinkFileType) {
         char sourcePath[PATH_MAX];
-        io_func *io = openHFSFile((HFSPlusCatalogFile *)list->record, volume);
+        io_func *io = openHFSFile(file, volume);
 
         if (io != NULL) {
           if (READ(io, 0, PATH_MAX, &sourcePath)) {
@@ -495,8 +496,7 @@ void extractAllInFolder(HFSCatalogNodeID folderID, Volume *volume) {
         }
 
         CLOSE(io);
-      } else {
-        file = (HFSPlusCatalogFile *)list->record;
+      } else if (file->permissions.fileMode > 0) {
         fd = open(name, O_CREAT | O_WRONLY, file->permissions.fileMode);
         outFile = createAbstractFileFromFile(fdopen(fd, "wb"));
         if (outFile != NULL) {
