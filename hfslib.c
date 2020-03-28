@@ -77,6 +77,27 @@ void writeToFile(HFSPlusCatalogFile *file, AbstractFile *output,
   free(buffer);
 }
 
+io_func* openHFSFile(HFSPlusCatalogFile *file, Volume *volume) {
+  io_func *io;
+
+  if (file->permissions.ownerFlags & UF_COMPRESSED) {
+    io = openHFSPlusCompressed(volume, file);
+    if (io == NULL) {
+      hfs_panic("error opening file");
+      return NULL;
+    }
+  } else {
+    io = openRawFile(file->fileID, &file->dataFork,
+                     (HFSPlusCatalogRecord *)file, volume);
+    if (io == NULL) {
+      hfs_panic("error opening file");
+      return NULL;
+    }
+  }
+
+  return io;
+}
+
 void writeToHFSFile(HFSPlusCatalogFile *file, AbstractFile *input,
                     Volume *volume) {
   unsigned char *buffer;
@@ -456,15 +477,35 @@ void extractAllInFolder(HFSCatalogNodeID folderID, Volume *volume) {
       extractAllInFolder(folder->folderID, volume);
       ASSERT(chdir(cwd) == 0, "chdir");
     } else if (list->record->recordType == kHFSPlusFileRecord) {
-      file = (HFSPlusCatalogFile *)list->record;
-      fd = open(name, O_CREAT | O_WRONLY, file->permissions.fileMode);
-      outFile = createAbstractFileFromFile(fdopen(fd, "wb"));
-      if (outFile != NULL) {
-        writeToFile(file, outFile, volume);
-        outFile->close(outFile);
-        close(fd);
+      if (((HFSPlusCatalogFile *)list->record)->userInfo.fileType == kSymLinkFileType) {
+        char sourcePath[PATH_MAX];
+        io_func *io = openHFSFile((HFSPlusCatalogFile *)list->record, volume);
+
+        if (io != NULL) {
+          if (READ(io, 0, PATH_MAX, &sourcePath)) {
+            remove(name);
+            if (symlink(sourcePath, name) != 0) {
+              perror("symlink");
+            };
+          } else {
+            hfs_panic("error reading");
+          }
+        } else {
+          fprintf(stderr, "error: couldn't read entry for %s\n", name);
+        }
+
+        CLOSE(io);
       } else {
-        printf("WARNING: cannot fopen %s\n", name);
+        file = (HFSPlusCatalogFile *)list->record;
+        fd = open(name, O_CREAT | O_WRONLY, file->permissions.fileMode);
+        outFile = createAbstractFileFromFile(fdopen(fd, "wb"));
+        if (outFile != NULL) {
+          writeToFile(file, outFile, volume);
+          outFile->close(outFile);
+          close(fd);
+        } else {
+          printf("WARNING: cannot fopen %s\n", name);
+        }
       }
     }
 
