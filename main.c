@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/stat.h>
 
 #include "dmg.h"
 #include "hfslib.h"
@@ -22,6 +23,15 @@ int main(int argc, char *argv[]) {
   AbstractFile *in;
   FILE* f;
   if (argc == 2) {
+    struct stat status;
+    if (stat(argv[1], &status) != 0) {
+      perror("stat");
+      return 1;
+    }
+    if (S_ISDIR(status.st_mode)) {
+      fprintf(stderr, "error: %s is a directory\n", argv[1]);
+      return 1;
+    }
     f = fopen(argv[1], "rb");
     in = createAbstractFileFromFile(f);
   } else if (argc > 2) {
