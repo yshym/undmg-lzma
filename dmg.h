@@ -46,6 +46,12 @@
 #define BOOTCODE_DMMY 0x444D4D59
 #define BOOTCODE_GOON 0x676F6F6E
 
+typedef enum DMGFileSystemType {
+  DMGFileSystemTypeHFS,
+  DMGFileSystemTypeAPFS,
+  DMGFileSystemTypeOther
+} DMGFileSystemType;
+
 enum { kUDIFFlagsFlattened = 1 };
 
 enum { kUDIFDeviceImageType = 1, kUDIFPartitionImageType = 2 };
@@ -362,7 +368,7 @@ BLKXTable *insertBLKX(AbstractFile *out, AbstractFile *in,
                       Volume *volume, int addComment);
 
 int extractDmg(AbstractFile *abstractIn, AbstractFile *abstractOut,
-               int partNum);
+               int partNum, DMGFileSystemType *fsType);
 int buildDmg(AbstractFile *abstractIn, AbstractFile *abstractOut,
              unsigned int BlockSize);
 int convertToISO(AbstractFile *abstractIn, AbstractFile *abstractOut);

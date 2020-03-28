@@ -7,11 +7,13 @@
 uint32_t calculateMasterChecksum(ResourceKey *resources);
 
 int extractDmg(AbstractFile *abstractIn, AbstractFile *abstractOut,
-               int partNum) {
+               int partNum, DMGFileSystemType *fsType) {
   off_t fileLength;
   UDIFResourceFile resourceFile;
   ResourceKey *resources;
   ResourceData *blkxData;
+
+  *fsType = DMGFileSystemTypeOther;
 
   fileLength = abstractIn->getLength(abstractIn);
   abstractIn->seek(abstractIn, fileLength - sizeof(UDIFResourceFile));
@@ -24,6 +26,11 @@ int extractDmg(AbstractFile *abstractIn, AbstractFile *abstractOut,
     blkxData = getResourceByKey(resources, "blkx")->data;
     while (blkxData != NULL) {
       if (strstr(blkxData->name, "Apple_HFS") != NULL) {
+        *fsType = DMGFileSystemTypeHFS;
+        break;
+      }
+      if (strstr(blkxData->name, "Apple_APFS") != NULL) {
+        *fsType = DMGFileSystemTypeAPFS;
         break;
       }
       blkxData = blkxData->next;

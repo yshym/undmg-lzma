@@ -53,9 +53,15 @@ int main(int argc, char *argv[]) {
     goto err;
   }
 
-  int result = extractDmg(in, out, -1);
+  DMGFileSystemType fsType;
+  int result = extractDmg(in, out, -1, &fsType);
   if (!result) {
     fprintf(stderr, "error: the provided data was not a DMG file.\n");
+    goto err;
+  }
+
+  if (fsType != DMGFileSystemTypeHFS) {
+    fprintf(stderr, "error: only HFS file systems are supported.\n");
     goto err;
   }
 
