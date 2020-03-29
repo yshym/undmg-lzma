@@ -113,7 +113,7 @@ Volume *openVolume(io_func *io) {
 
   volume->volumeHeader = readVolumeHeader(io, 1024);
   if (volume->volumeHeader == NULL) {
-    fprintf(stderr, "Couldn't get volume header\n");
+    fprintf(stderr, "Couldn't read volume header\n");
     free(volume);
     return NULL;
   }
@@ -121,7 +121,7 @@ Volume *openVolume(io_func *io) {
   file = openRawFile(kHFSExtentsFileID, &volume->volumeHeader->extentsFile,
                      NULL, volume);
   if (file == NULL) {
-    fprintf(stderr, "Couldn't get volume file");
+    fprintf(stderr, "Couldn't open volume file");
     free(volume->volumeHeader);
     free(volume);
     return NULL;
@@ -129,7 +129,7 @@ Volume *openVolume(io_func *io) {
 
   volume->extentsTree = openExtentsTree(file);
   if (volume->extentsTree == NULL) {
-    fprintf(stderr, "Couldn't get extents tree");
+    fprintf(stderr, "Couldn't open extents tree\n");
     free(volume->volumeHeader);
     free(volume);
     return NULL;
@@ -138,7 +138,7 @@ Volume *openVolume(io_func *io) {
   file = openRawFile(kHFSCatalogFileID, &volume->volumeHeader->catalogFile,
                      NULL, volume);
   if (file == NULL) {
-    fprintf(stderr, "Couldn't catalog file\n");
+    fprintf(stderr, "Couldn't open catalog file\n");
     closeBTree(volume->extentsTree);
     free(volume->volumeHeader);
     free(volume);
@@ -147,7 +147,7 @@ Volume *openVolume(io_func *io) {
 
   volume->catalogTree = openCatalogTree(file);
   if (volume->catalogTree == NULL) {
-    fprintf(stderr, "Couldn't catalog tree\n");
+    fprintf(stderr, "Couldn't open catalog tree\n");
     closeBTree(volume->extentsTree);
     free(volume->volumeHeader);
     free(volume);
@@ -158,7 +158,7 @@ Volume *openVolume(io_func *io) {
       openRawFile(kHFSAllocationFileID, &volume->volumeHeader->allocationFile,
                   NULL, volume);
   if (volume->allocationFile == NULL) {
-    fprintf(stderr, "Couldn't allocation file\n");
+    fprintf(stderr, "Couldn't open allocation file\n");
     closeBTree(volume->catalogTree);
     closeBTree(volume->extentsTree);
     free(volume->volumeHeader);
