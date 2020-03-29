@@ -90,6 +90,9 @@ static void cacheRun(DMG *dmg, BLKXTable *blkx, int run) {
 
     ASSERT(BZ2_bzDecompressEnd(&bzstrm) == BZ_OK, "bzDecompressEnd");
     break;
+  case BLOCK_LZFSE:
+    fprintf(stderr, "LZFSE blocks are unsupported, skipping\n");
+    break;
   case BLOCK_RAW:
     ASSERT((have = dmg->dmg->read(dmg->dmg, dmg->runData,
                                   blkx->runs[run].compLength)) ==
