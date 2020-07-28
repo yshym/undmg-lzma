@@ -13,6 +13,7 @@
 
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <limits.h>
 
 #define BUFSIZE 1024 * 1024
 

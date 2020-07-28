@@ -262,7 +262,10 @@ typedef struct ExtendedFolderInfo ExtendedFolderInfo;
 #ifndef _SYS_STAT_H
 #define S_ISUID 0004000 /* set user id on execution */
 #define S_ISGID 0002000 /* set group id on execution */
+
+#ifndef S_ISTXT
 #define S_ISTXT 0001000 /* sticky bit */
+#endif
 
 #define S_IRWXU 0000700 /* RWX mask for owner */
 #define S_IRUSR 0000400 /* R for owner */
@@ -291,7 +294,9 @@ typedef struct ExtendedFolderInfo ExtendedFolderInfo;
 #endif
 #endif
 
+#ifndef UF_COMPRESSED
 #define UF_COMPRESSED 040
+#endif
 
 struct HFSPlusBSDInfo {
   uint32_t ownerID;
