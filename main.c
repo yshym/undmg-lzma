@@ -23,6 +23,11 @@ int main(int argc, char *argv[]) {
   AbstractFile *in;
   FILE* f;
   if (argc == 2) {
+    if (strncmp(argv[1], "--help", sizeof("--help")) == 0 || strncmp(argv[1], "-h", sizeof("-h")) == 0) {
+      fprintf(stderr, "Usage: %s my.dmg\n", argv[0]);
+      return 0;
+    }
+
     struct stat status;
     if (stat(argv[1], &status) != 0) {
       perror("stat");
@@ -41,8 +46,8 @@ int main(int argc, char *argv[]) {
     if (!isatty(fileno(stdin))) {
       in = createAbstractFileFromFile(stdin);
     } else {
-      fprintf(stderr, "error: stdin is a tty, quiting\n");
-      goto err;
+      fprintf(stderr, "Usage: %s my.dmg\n", argv[0]);
+      return 0;
     }
   }
 
