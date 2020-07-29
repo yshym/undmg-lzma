@@ -1,13 +1,13 @@
 OUT=undmg
 SRC=$(wildcard *.c)
 OBJ=$(SRC:.c=.o)
-LIB=-lz -lc -lbz2
+LIB=$(shell pkg-config --libs zlib) $(shell pkg-config --libs bzip2) -lc
 CC ?= cc
 LD ?= $(CC)
 PREFIX=/usr/local
 TARGET=$(PREFIX)/bin/$(OUT)
 LDFLAGS=
-CFLAGS=
+CFLAGS=$(shell pkg-config --cflags zlib) $(shell pkg-config --cflags bzip2)
 
 .PHONY: all
 all: $(OUT)

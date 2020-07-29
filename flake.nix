@@ -12,6 +12,7 @@
         pname = "undmg";
         version = "1.0.5";
 
+        nativeBuildInputs = [ pkgconfig ];
         buildInputs = [ zlib bzip2 ];
 
         src = self;
