@@ -1,13 +1,15 @@
+PKG_CONFIG ?= pkg-config
+CC ?= cc
+LD ?= $(CC)
+
 OUT=undmg
 SRC=$(wildcard *.c)
 OBJ=$(SRC:.c=.o)
-LIB=$(shell pkg-config --libs zlib) $(shell pkg-config --libs bzip2) -lc
-CC ?= cc
-LD ?= $(CC)
+LIB=$(shell $(PKG_CONFIG) --libs zlib) $(shell $(PKG_CONFIG) --libs bzip2) -lc
 PREFIX=/usr/local
 TARGET=$(PREFIX)/bin/$(OUT)
 LDFLAGS=
-CFLAGS=$(shell pkg-config --cflags zlib) $(shell pkg-config --cflags bzip2)
+CFLAGS=$(shell $(PKG_CONFIG) --cflags zlib) $(shell $(PKG_CONFIG) --cflags bzip2)
 
 .PHONY: all
 all: $(OUT)
