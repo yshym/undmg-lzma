@@ -2,8 +2,8 @@ OUT=undmg
 SRC=$(wildcard *.c)
 OBJ=$(SRC:.c=.o)
 LIB=-lz -lc -lbz2
-CC=cc -c
-LD=cc
+CC ?= cc
+LD ?= $(CC)
 PREFIX=/usr/local
 TARGET=$(PREFIX)/bin/$(OUT)
 LDFLAGS=
@@ -23,7 +23,7 @@ $(TARGET): $(OUT)
 	install $(OUT) $(PREFIX)/bin/
 
 %.o: %.c
-	$(CC) $(CFLAGS) $^ -o $@
+	$(CC) -c $(CFLAGS) $^ -o $@
 
 .PHONY: clean
 clean:
