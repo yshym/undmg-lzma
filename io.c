@@ -410,6 +410,9 @@ void extractBLKX(AbstractFile *in, AbstractFile *out, BLKXTable *blkx) {
 
       ASSERT(BZ2_bzDecompressEnd(&bzstrm) == BZ_OK, "bzDecompressEnd");
       break;
+    case BLOCK_LZFSE:
+      fprintf(stderr, "LZFSE blocks are unsupported, skipping\n");
+      break;
     case BLOCK_RAW:
       if (blkx->runs[i].compLength > bufferSize) {
         uint64_t left = blkx->runs[i].compLength;
