@@ -1,6 +1,6 @@
 PKG_CONFIG ?= pkg-config
 CC ?= cc
-LD ?= $(CC)
+LD = $(CC)
 
 OUT=undmg
 SRC=$(wildcard *.c)
