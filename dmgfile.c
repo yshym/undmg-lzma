@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <zlib.h>
+#include <lzfse.h>
 
 #include "dmg.h"
 #include "dmgfile.h"
@@ -91,7 +92,8 @@ static void cacheRun(DMG *dmg, BLKXTable *blkx, int run) {
     ASSERT(BZ2_bzDecompressEnd(&bzstrm) == BZ_OK, "bzDecompressEnd");
     break;
   case BLOCK_LZFSE:
-    fprintf(stderr, "LZFSE blocks are unsupported, skipping\n");
+    have = lzfse_decode_buffer(dmg->runData, bufferSize, inBuffer, bufferSize, NULL);
+
     break;
   case BLOCK_RAW:
     ASSERT((have = dmg->dmg->read(dmg->dmg, dmg->runData,

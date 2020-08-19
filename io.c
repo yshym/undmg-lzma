@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <zlib.h>
+#include <lzfse.h>
 
 #include "dmg.h"
 
@@ -411,7 +412,11 @@ void extractBLKX(AbstractFile *in, AbstractFile *out, BLKXTable *blkx) {
       ASSERT(BZ2_bzDecompressEnd(&bzstrm) == BZ_OK, "bzDecompressEnd");
       break;
     case BLOCK_LZFSE:
-      fprintf(stderr, "LZFSE blocks are unsupported, skipping\n");
+      in->read(in, inBuffer, bufferSize);
+      have = lzfse_decode_buffer(outBuffer, bufferSize, inBuffer, bufferSize, NULL);
+      ASSERT(have > 0, "lzfse_decode_buffer");
+      ASSERT(out->write(out, outBuffer, have) == have, "mWrite");
+
       break;
     case BLOCK_RAW:
       if (blkx->runs[i].compLength > bufferSize) {
