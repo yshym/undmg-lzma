@@ -10,7 +10,7 @@
     packages = forAllSystems (system: with (import nixpkgs { inherit system; }); {
       undmg = stdenv.mkDerivation {
         pname = "undmg";
-        version = "1.0.5";
+        version = "1.1.0";
 
         nativeBuildInputs = [ pkgconfig ];
         buildInputs = [ zlib bzip2 lzfse ];
