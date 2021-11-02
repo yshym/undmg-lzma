@@ -25,7 +25,7 @@ int main(int argc, char *argv[]) {
   if (argc == 2) {
     if (strncmp(argv[1], "--help", sizeof("--help")) == 0 || strncmp(argv[1], "-h", sizeof("-h")) == 0) {
       fprintf(stderr, "Usage: %s my.dmg\n", argv[0]);
-      return 0;
+      return 1;
     }
 
     struct stat status;
@@ -43,12 +43,8 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "error: too many arguments provided\n");
     goto err;
   } else {
-    if (!isatty(fileno(stdin))) {
-      in = createAbstractFileFromFile(stdin);
-    } else {
-      fprintf(stderr, "Usage: %s my.dmg\n", argv[0]);
-      return 0;
-    }
+    fprintf(stderr, "Usage: %s my.dmg\n", argv[0]);
+    return 1;
   }
 
   AbstractFile *out = createAbstractFileFromFile(tmpfile());
