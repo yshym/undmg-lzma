@@ -1,7 +1,7 @@
 {
   description = "Extract a DMG file";
 
-  inputs.nixpkgs.url = "nixpkgs/nixos-20.03-small";
+  inputs.nixpkgs.url = "nixpkgs/nixos-21.05-small";
 
   outputs = { self, nixpkgs }: let
     systems = [ "x86_64-linux" "i686-linux" "x86_64-darwin" "aarch64-linux" ];
