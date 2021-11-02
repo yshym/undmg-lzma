@@ -18,6 +18,8 @@
         src = self;
 
         makeFlags = [ "PREFIX=$(out)" ];
+
+        doCheck = true;
       };
     });
 

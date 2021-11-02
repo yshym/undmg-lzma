@@ -30,3 +30,7 @@ $(TARGET): $(OUT)
 .PHONY: clean
 clean:
 	rm -f $(OBJ) $(OUT)
+
+.PHONY: test
+test: $(OUT)
+	$(SHELL) ./test.sh
