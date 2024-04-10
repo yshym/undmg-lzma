@@ -13,7 +13,7 @@
         version = "1.1.0";
 
         nativeBuildInputs = [ pkgconfig ];
-        buildInputs = [ zlib bzip2 lzfse ];
+        buildInputs = [ zlib bzip2 lzfse lzma ];
 
         src = self;
 
